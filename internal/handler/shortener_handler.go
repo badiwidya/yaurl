@@ -18,6 +18,7 @@ func New(service service.ShortenerService) *shortenerHandler {
 
 type ShortenerHandler interface {
 	ShortenURL(w http.ResponseWriter, r *http.Request)
+	RedirectUrl(w http.ResponseWriter, r *http.Request)
 }
 
 type shortenerHandler struct {
@@ -53,4 +54,19 @@ func (s *shortenerHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	jsonEncoder.Encode(dto.URL{Url: *newURL})
+}
+
+func (s *shortenerHandler) RedirectUrl(w http.ResponseWriter, r *http.Request) {
+	code := r.PathValue("code")
+
+	ctx, close := context.WithTimeout(r.Context(), 5*time.Second)
+	defer close()
+
+	long_url, err := s.service.FindLongUrl(ctx, code)
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusNotFound)
+		return
+	}
+
+	http.Redirect(w, r, *long_url, http.StatusFound)
 }

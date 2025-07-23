@@ -23,6 +23,7 @@ func New(config *config.Config, logger *slog.Logger, db *sql.DB) *shortenerServi
 
 type ShortenerService interface {
 	CreateNewShortUrl(context.Context, string) (*string, error)
+	FindLongUrl(context.Context, string) (*string, error)
 }
 
 type shortenerService struct {
@@ -34,6 +35,27 @@ type shortenerService struct {
 
 var ErrNotValidUrl error = errors.New("Invalid URL")
 var ErrExecQuery error = errors.New("Error when executing query")
+var ErrNotFound error = errors.New("Row not found")
+
+func (s *shortenerService) FindLongUrl(ctx context.Context, code string) (*string, error) {
+	row := s.db.QueryRowContext(
+		ctx,
+		"SELECT long_url FROM urls WHERE short_url = $1",
+		code,
+	)
+
+	var long_url string
+
+	err := row.Scan(&long_url)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, ErrExecQuery
+	}
+
+	return &long_url, nil
+}
 
 func (s *shortenerService) CreateNewShortUrl(ctx context.Context, longUrl string) (*string, error) {
 

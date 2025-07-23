@@ -52,6 +52,7 @@ func (a *app) Run() error {
 	handler := handler.New(service)
 
 	mux.HandleFunc("/api/url", handler.ShortenURL)
+	mux.HandleFunc("/{code}", handler.RedirectUrl)
 
 	logger.Info("Server started", "port", a.cfg.APP_PORT)
 	return http.ListenAndServe(a.addr, mux)

@@ -37,6 +37,8 @@ func (s *shortenerHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	jsonEncoder := json.NewEncoder(w)
 
+	w.Header().Set("Content-Type", "application/json")
+
 	newURL, err := s.service.CreateNewShortUrl(ctx, longUrl.Url)
 	if err != nil {
 		if err == service.ErrNotValidUrl {

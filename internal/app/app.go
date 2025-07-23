@@ -33,7 +33,10 @@ func New(addr string, cfg *config.Config) *app {
 func (a *app) Run() error {
 	mux := http.NewServeMux()
 
-	slog.Info("Database connected")
+	level := a.cfg.GetLogLevel()
+	logger := createNewLogger(level)
+
+	logger.Info("Database connected")
 	db, err := sql.Open("pgx", a.cfg.DB_STRING)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
@@ -44,15 +47,13 @@ func (a *app) Run() error {
 		log.Fatalf("Cannot ping to database: %v\n", err)
 	}
 
-	level := a.cfg.GetLogLevel()
-
-	logger := createNewLogger(level)
 	service := service.New(a.cfg, logger.With("service", "shortener-service"), db)
 
 	handler := handler.New(service)
 
 	mux.HandleFunc("/api/url", handler.ShortenURL)
 
+	logger.Info("Server started", "port", a.cfg.APP_PORT)
 	return http.ListenAndServe(a.addr, mux)
 }
 

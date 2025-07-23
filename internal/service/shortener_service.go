@@ -17,6 +17,7 @@ func New(config *config.Config, logger *slog.Logger, db *sql.DB) *shortenerServi
 		cfg:    config,
 		logger: logger,
 		db:     db,
+		rand:   rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
@@ -28,6 +29,7 @@ type shortenerService struct {
 	cfg    *config.Config
 	logger *slog.Logger
 	db     *sql.DB
+	rand   *rand.Rand
 }
 
 var ErrNotValidUrl error = errors.New("Invalid URL")
@@ -61,11 +63,9 @@ func (s *shortenerService) CreateNewShortUrl(ctx context.Context, longUrl string
 func (s *shortenerService) generateRandomCode() string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
-
 	shortCode := make([]byte, 7)
 	for i := range shortCode {
-		shortCode[i] = charset[seededRand.Intn(len(charset))]
+		shortCode[i] = charset[s.rand.Intn(len(charset))]
 	}
 
 	return string(shortCode)

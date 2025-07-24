@@ -31,20 +31,22 @@ func (s *shortenerHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	ctx, close := context.WithTimeout(r.Context(), 5*time.Second)
 	defer close()
 
-	var longUrl dto.URL
-	if err := json.NewDecoder(r.Body).Decode(&longUrl); err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-	}
-
 	jsonEncoder := json.NewEncoder(w)
 
 	w.Header().Set("Content-Type", "application/json")
+
+	var longUrl dto.URL
+	if err := json.NewDecoder(r.Body).Decode(&longUrl); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		jsonEncoder.Encode(struct{ message string }{message: "Not a valid URL"})
+		return
+	}
 
 	newURL, err := s.service.CreateNewShortUrl(ctx, longUrl.Url)
 	if err != nil {
 		if err == service.ErrNotValidUrl {
 			w.WriteHeader(http.StatusBadRequest)
-			jsonEncoder.Encode(struct{ message string }{message: "Bad Request: Not a valid URL"})
+			jsonEncoder.Encode(struct{ message string }{message: "Not a valid URL"})
 			return
 		}
 		w.WriteHeader(http.StatusInternalServerError)

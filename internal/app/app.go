@@ -8,8 +8,8 @@ import (
 	"os"
 
 	"github.com/badiwidya/yaurl/internal/config"
-	"github.com/badiwidya/yaurl/internal/handler"
-	"github.com/badiwidya/yaurl/internal/service"
+	shortenerHandler "github.com/badiwidya/yaurl/internal/handler/shortener"
+	shortenerService "github.com/badiwidya/yaurl/internal/service/shortener"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -47,9 +47,9 @@ func (a *app) Run() error {
 		log.Fatalf("Cannot ping to database: %v\n", err)
 	}
 
-	service := service.New(a.cfg, logger.With("service", "shortener-service"), db)
+	service := shortenerService.New(a.cfg, logger.With("service", "shortener-service"), db)
 
-	handler := handler.New(service)
+	handler := shortenerHandler.New(service)
 
 	mux.HandleFunc("/api/url", handler.ShortenURL)
 	mux.HandleFunc("/{code}", handler.RedirectUrl)

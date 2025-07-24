@@ -1,4 +1,4 @@
-package handler
+package shortener
 
 import (
 	"context"
@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/badiwidya/yaurl/internal/dto"
-	"github.com/badiwidya/yaurl/internal/service"
+	shortenerService "github.com/badiwidya/yaurl/internal/service/shortener"
 )
 
-func New(service service.ShortenerService) *shortenerHandler {
+func New(service shortenerService.ShortenerService) *shortenerHandler {
 	return &shortenerHandler{
 		service: service,
 	}
@@ -22,7 +22,7 @@ type ShortenerHandler interface {
 }
 
 type shortenerHandler struct {
-	service service.ShortenerService
+	service shortenerService.ShortenerService
 }
 
 func (s *shortenerHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +44,7 @@ func (s *shortenerHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	newURL, err := s.service.CreateNewShortUrl(ctx, longUrl.Url)
 	if err != nil {
-		if err == service.ErrNotValidUrl {
+		if err == shortenerService.ErrNotValidUrl {
 			w.WriteHeader(http.StatusBadRequest)
 			jsonEncoder.Encode(struct{ message string }{message: "Not a valid URL"})
 			return

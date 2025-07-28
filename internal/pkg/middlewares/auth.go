@@ -31,9 +31,8 @@ func NewAuthRequired(db *sql.DB) func(http.Handler) http.Handler {
 				return
 			}
 
-			row := db.QueryRowContext(
-				r.Context(),
-				"SELECT user_id FROM sessions where session_id = $1",
+			row := db.QueryRowContext(r.Context(),
+				"SELECT user_id FROM sessions where session_id = $1 AND expires_at > NOW()",
 				cookie.Value,
 			)
 

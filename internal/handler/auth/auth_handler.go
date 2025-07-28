@@ -129,10 +129,10 @@ func (h *handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	cookie := newSessionCookie(session)
 
+	http.SetCookie(w, cookie)
 	util.JSONResponse(w, http.StatusOK, &dto.Response{
 		Message: "User logged in successfully",
 	})
-	http.SetCookie(w, cookie)
 }
 
 func (h *handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
@@ -168,11 +168,10 @@ func (h *handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 
 	cookie.MaxAge = -1
 
-	w.WriteHeader(http.StatusOK)
+	http.SetCookie(w, cookie)
 	util.JSONResponse(w, http.StatusOK, &dto.Response{
 		Message: "User logged out successfully",
 	})
-	http.SetCookie(w, cookie)
 }
 
 const sessionCookieName = "session_id"

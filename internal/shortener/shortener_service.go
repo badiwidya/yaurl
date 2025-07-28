@@ -51,6 +51,7 @@ func (s *service) FindLongUrl(ctx context.Context, code string) (*string, error)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
+		s.logger.Error("An error occurred when scanning row", "error", err.Error())
 		return nil, ErrExecQuery
 	}
 

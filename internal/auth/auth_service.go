@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"strings"
 )
 
 func NewService(db *sql.DB, logger *slog.Logger) *service {
@@ -41,7 +42,7 @@ func (s *service) RegisterUser(ctx context.Context, user RegisterUserRequest) (*
 	defer tx.Rollback()
 
 	var username string
-	row := tx.QueryRowContext(ctx, "SELECT username FROM users WHERE username = $1;", user.Username)
+	row := tx.QueryRowContext(ctx, "SELECT username FROM users WHERE username = $1;", strings.ToLower(user.Username))
 
 	err = row.Scan(&username)
 	switch {
@@ -65,7 +66,7 @@ func (s *service) RegisterUser(ctx context.Context, user RegisterUserRequest) (*
 		ctx,
 		"INSERT INTO users (name, username, password) VALUES ($1, $2, $3) RETURNING id;",
 		user.Name,
-		user.Username,
+		strings.ToLower(user.Username),
 		hashedPassword,
 	)
 	if err := result.Scan(&id); err != nil {
@@ -95,19 +96,22 @@ func (s *service) RegisterUser(ctx context.Context, user RegisterUserRequest) (*
 		return nil, err
 	}
 
+	s.logger.Info("New user created", "username", strings.ToLower(user.Username))
+
 	return &sessionId, nil
 }
 
 func (s *service) LoginUser(ctx context.Context, user LoginUserRequest) (*string, error) {
 	var id int
 	var password string
-	row := s.db.QueryRowContext(ctx, "SELECT id, password FROM users WHERE username = $1;", user.Username)
+	row := s.db.QueryRowContext(ctx, "SELECT id, password FROM users WHERE username = $1;", strings.ToLower(user.Username))
 
 	err := row.Scan(&id, &password)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrInvalidCredentials
 		}
+		s.logger.Error("Unexpected error when scanning row", "error", err.Error())
 		return nil, err
 	}
 
@@ -133,6 +137,7 @@ func (s *service) LoginUser(ctx context.Context, user LoginUserRequest) (*string
 		sessionMaxAge,
 	)
 	if err != nil {
+		s.logger.Error("Unexpected error when executing query", "error", err.Error())
 		return nil, err
 	}
 
@@ -146,6 +151,7 @@ func (s *service) RemoveSession(ctx context.Context, sessionId string) error {
 		sessionId,
 	)
 	if err != nil {
+		s.logger.Error("Unexpected error when executing query", "error", err.Error())
 		return err
 	}
 

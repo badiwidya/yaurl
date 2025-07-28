@@ -99,11 +99,12 @@ func (s *Server) setupRouter() http.Handler {
 
 	authMiddleware := middlewares.NewAuthRequired(s.db)
 
-	shortenerRoutes := shortener.RegisterRoutes(shortenerHandler, authMiddleware)
 	authRoutes := auth.RegisterRoutes(authHandler, authMiddleware)
 
 	mux.Handle("/api/auth", http.StripPrefix("/api/auth", authRoutes))
-	mux.Handle("/", shortenerRoutes)
+	mux.Handle("POST /api/url", authMiddleware(http.HandlerFunc(shortenerHandler.ShortenURL)))
+
+	mux.HandleFunc("GET /{code}", shortenerHandler.RedirectUrl)
 
 	return mux
 }

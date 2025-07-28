@@ -8,7 +8,10 @@ import (
 	"os"
 
 	"github.com/badiwidya/yaurl/internal/config"
+	authHandler "github.com/badiwidya/yaurl/internal/handler/auth"
 	shortenerHandler "github.com/badiwidya/yaurl/internal/handler/shortener"
+	"github.com/badiwidya/yaurl/internal/middleware"
+	authService "github.com/badiwidya/yaurl/internal/service/auth"
 	shortenerService "github.com/badiwidya/yaurl/internal/service/shortener"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -47,12 +50,21 @@ func (a *app) Run() error {
 		log.Fatalf("Cannot ping to database: %v\n", err)
 	}
 
-	service := shortenerService.New(a.cfg, logger.With("service", "shortener-service"), db)
+	urlService := shortenerService.New(a.cfg, logger.With("service", "shortener-service"), db)
+	urlHandler := shortenerHandler.New(urlService)
 
-	handler := shortenerHandler.New(service)
+	authS := authService.New(db, logger.With("service", "auth-service"))
+	authH := authHandler.New(authS)
 
-	mux.HandleFunc("/api/url", handler.ShortenURL)
-	mux.HandleFunc("/{code}", handler.RedirectUrl)
+	shortenURL := middleware.AuthRequired(db, http.HandlerFunc(urlHandler.ShortenURL))
+	logout := middleware.AuthRequired(db, http.HandlerFunc(authH.HandleLogout))
+
+	mux.Handle("POST /api/url", shortenURL)
+	mux.HandleFunc("GET /{code}", urlHandler.RedirectUrl)
+
+	mux.HandleFunc("POST /api/auth/register", authH.HandleRegister)
+	mux.HandleFunc("POST /api/auth/login", authH.HandleLogin)
+	mux.Handle("POST /api/auth/logout", logout)
 
 	logger.Info("Server started", "port", a.cfg.APP_PORT)
 	return http.ListenAndServe(a.addr, mux)

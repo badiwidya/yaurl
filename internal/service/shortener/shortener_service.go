@@ -22,7 +22,7 @@ func New(config *config.Config, logger *slog.Logger, db *sql.DB) *shortenerServi
 }
 
 type ShortenerService interface {
-	CreateNewShortUrl(context.Context, string) (*string, error)
+	CreateNewShortUrl(context.Context, string, int, *time.Time) (*string, error)
 	FindLongUrl(context.Context, string) (*string, error)
 }
 
@@ -57,7 +57,7 @@ func (s *shortenerService) FindLongUrl(ctx context.Context, code string) (*strin
 	return &long_url, nil
 }
 
-func (s *shortenerService) CreateNewShortUrl(ctx context.Context, longUrl string) (*string, error) {
+func (s *shortenerService) CreateNewShortUrl(ctx context.Context, longUrl string, userId int, expire *time.Time) (*string, error) {
 
 	result, err := url.Parse(longUrl)
 	if err != nil || result.Scheme == "" || result.Host == "" {
@@ -66,12 +66,24 @@ func (s *shortenerService) CreateNewShortUrl(ctx context.Context, longUrl string
 
 	shortCode := s.generateRandomCode()
 
-	_, err = s.db.ExecContext(
-		ctx,
-		"INSERT INTO urls (long_url, short_url) VALUES ($1, $2)",
-		longUrl,
-		shortCode,
-	)
+	if expire != nil {
+		_, err = s.db.ExecContext(
+			ctx,
+			"INSERT INTO urls (user_id, long_url, short_url, expires_at) VALUES ($1, $2, $3, $4)",
+			userId,
+			longUrl,
+			shortCode,
+			expire,
+		)
+	} else {
+		_, err = s.db.ExecContext(
+			ctx,
+			"INSERT INTO urls (user_id, long_url, short_url) VALUES ($1, $2, $3)",
+			userId,
+			longUrl,
+			shortCode,
+		)
+	}
 	if err != nil {
 		s.logger.Error("Failed to execute insert query", "error", err.Error())
 		return nil, ErrExecQuery

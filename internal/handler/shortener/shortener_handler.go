@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/badiwidya/yaurl/internal/dto"
+	"github.com/badiwidya/yaurl/internal/middleware"
 	shortenerService "github.com/badiwidya/yaurl/internal/service/shortener"
 )
 
@@ -27,13 +28,20 @@ type shortenerHandler struct {
 
 func (s *shortenerHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-
-	ctx, close := context.WithTimeout(r.Context(), 5*time.Second)
-	defer close()
-
 	jsonEncoder := json.NewEncoder(w)
 
 	w.Header().Set("Content-Type", "application/json")
+
+	contextValue := r.Context().Value(middleware.UserKey)
+
+	userId, ok := contextValue.(int)
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		jsonEncoder.Encode(struct{ message string }{message: "Bad request: userId invalid"})
+	}
+
+	ctx, close := context.WithTimeout(r.Context(), 5*time.Second)
+	defer close()
 
 	var longUrl dto.URL
 	if err := json.NewDecoder(r.Body).Decode(&longUrl); err != nil {
@@ -42,7 +50,7 @@ func (s *shortenerHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newURL, err := s.service.CreateNewShortUrl(ctx, longUrl.Url)
+	newURL, err := s.service.CreateNewShortUrl(ctx, longUrl.Url, userId, longUrl.Expires)
 	if err != nil {
 		if err == shortenerService.ErrNotValidUrl {
 			w.WriteHeader(http.StatusBadRequest)

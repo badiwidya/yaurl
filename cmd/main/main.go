@@ -13,11 +13,13 @@ func main() {
 		log.Fatalf("Failed to load dotenv: %v\n", err)
 	}
 	cfg := config.New()
-	address := cfg.APP_HOST + ":" + cfg.APP_PORT
 
-	app := app.New(address, cfg)
+	server, err := app.NewServer(cfg)
+	if err != nil {
+		log.Fatalf("Failed to initialize server: %v\n", err)
+	}
 
-	if err := app.Run(); err != nil {
-		log.Fatalf("Failed to start server")
+	if err := server.Run(); err != nil {
+		log.Fatalf("Server stopped with error: %v\n", err)
 	}
 }

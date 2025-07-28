@@ -1,0 +1,21 @@
+{{template "layout.gohtml"}}
+
+{{define "main"}}
+
+  <h2>Welcome to YAURL</h2>
+
+  {{if .IsAuthenticated}}
+    <p>You're logged in. Shorten a new URL:</p>
+    <form id="shortenForm">
+      <input type="url" name="url" placeholder="https://example.com" required>
+      <button type="submit">Shorten</button> 
+    </form>
+    <p id="result"></p>
+  {{else}}
+    <p>Please login or register.</p>
+    <a href="/web/login">Login</a>
+    <a href="/web/register">Register</a>
+  {{end}}
+
+{{end}}
+<!-- vim: ts=2 sts=2 sw=2 et -->

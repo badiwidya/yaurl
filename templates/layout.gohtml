@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>YAURL - Yet Another URL Shortener</title>
+	</head>
+	<body>
+    {{template "main" .}}
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const registerForm = document.getElementById("registerForm");
+      const loginForm = document.getElementById("loginForm");
+      const shortenForm = document.getElementById("shortenForm");
+
+      if (registerForm) {
+        registerForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const formData = new FormData(registerForm);
+          const data = Object.fromEntries(formData.entries());
+
+          try {
+            const response = await fetch("/api/auth/register", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(data),
+            });
+
+            if (response.ok) {
+              alert("Registration successful!");
+              window.location.href = "/web";
+            } else {
+              const error = await response.json();
+              alert(`Registration failed: ${error.message || "Unknown error"}`);
+            }
+          } catch (error) {
+            alert(`An error occurred: ${error.message}`);
+          }
+        });
+      }
+
+      if (loginForm) {
+        loginForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const formData = new FormData(loginForm);
+          const data = Object.fromEntries(formData.entries());
+
+          try {
+            const response = await fetch("/api/auth/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(data),
+            });
+
+            console.log(await response.json())
+
+            if (response.ok) {
+              window.location.href = "/web";
+            } else {
+              const error = await response.json();
+              alert(`Login failed: ${error.message || "Invalid credentials"}`);
+            }
+          } catch (error) {
+            console.log(error)
+            alert(`An error occurred: ${error.message}`);
+          }
+        });
+      }
+
+      if (shortenForm) {
+        const resultP = document.getElementById("result");
+
+        shortenForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          resultP.textContent = "Shortening...";
+
+          const formData = new FormData(shortenForm);
+          const data = Object.fromEntries(formData.entries());
+
+          try {
+            const response = await fetch("/api/url", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(data),
+            });
+
+            const responseData = await response.json();
+
+            if (response.ok) {
+              const shortUrl = responseData.data.url;
+              resultP.innerHTML = `Success! Short URL: <a href="${shortUrl}" target="_blank">${shortUrl}</a>`;
+            } else {
+              if (response.status === 401) {
+                alert("Your session has expired. Please login again.");
+                window.location.href = "/web/login";
+              } else {
+                resultP.textContent = `Error: ${responseData.message || "Failed to shorten URL"}`;
+              }
+            }
+          } catch (error) {
+            resultP.textContent = `An error occurred: ${error.message}`;
+          }
+        });
+      }
+    });
+
+    </script>
+  </body>
+</html>
+
+<!-- vim: ts=2 sts=2 sw=2 et -->

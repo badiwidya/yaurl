@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 )
@@ -60,6 +61,7 @@ func ParseJSON(w http.ResponseWriter, r *http.Request, dest any) error {
 		default:
 			return err
 		}
+		slog.Debug("error json", "error", err)
 	}
 
 	return nil

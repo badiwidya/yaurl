@@ -101,9 +101,18 @@ func (s *Server) setupRouter() http.Handler {
 
 	authRoutes := auth.RegisterRoutes(authHandler, authMiddleware)
 
-	mux.Handle("/api/auth", http.StripPrefix("/api/auth", authRoutes))
+	mux.Handle("/api/auth/", http.StripPrefix("/api/auth", authRoutes))
 	mux.Handle("POST /api/url", authMiddleware(http.HandlerFunc(shortenerHandler.ShortenURL)))
 
+	mux.HandleFunc("GET /web/login", func(w http.ResponseWriter, r *http.Request) {
+		s.serveTemplate(w, "login.gohtml", nil)
+	})
+
+	mux.HandleFunc("GET /web/register", func(w http.ResponseWriter, r *http.Request) {
+		s.serveTemplate(w, "register.gohtml", nil)
+	})
+
+	mux.HandleFunc("GET /web", s.handleHomepage())
 	mux.HandleFunc("GET /{code}", shortenerHandler.RedirectUrl)
 
 	return mux

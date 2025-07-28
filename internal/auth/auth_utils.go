@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -122,4 +123,19 @@ func decodeHash(encodedHash string) (*argon2Params, []byte, []byte, error) {
 	params.keyLength = uint32(len(hash))
 
 	return params, salt, hash, nil
+}
+
+var (
+	sessionSaltLength = 32
+	sessionMaxAge     = time.Now().UTC().Add(7 * 24 * time.Hour)
+)
+
+func generateSessionID() (string, error) {
+	b := make([]byte, sessionSaltLength)
+
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+
+	return base64.URLEncoding.EncodeToString(b), nil
 }

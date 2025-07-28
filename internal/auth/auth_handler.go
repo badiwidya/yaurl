@@ -6,25 +6,24 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/badiwidya/yaurl/internal/dto"
-	"github.com/badiwidya/yaurl/internal/service/auth"
-	"github.com/badiwidya/yaurl/internal/util"
+	"github.com/badiwidya/yaurl/internal/pkg/types"
+	"github.com/badiwidya/yaurl/internal/pkg/utils"
 )
 
-func New(service auth.Service) *handler {
+func NewHandler(service Service) *handler {
 	return &handler{
 		service: service,
 	}
 }
 
 type Handler interface {
-	RegisterHandler(http.ResponseWriter, *http.Request)
-	LoginHandler(http.ResponseWriter, *http.Request)
-	LogoutHandler(http.ResponseWriter, *http.Request)
+	HandleRegister(http.ResponseWriter, *http.Request)
+	HandleLogin(http.ResponseWriter, *http.Request)
+	HandleLogout(http.ResponseWriter, *http.Request)
 }
 
 type handler struct {
-	service auth.Service
+	service Service
 }
 
 func (h *handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
@@ -33,32 +32,32 @@ func (h *handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
 
-	var user dto.RegisterUserRequest
-	if err := util.ParseJSON(w, r, &user); err != nil {
-		var mr *util.MalformedRequest
+	var user RegisterUserRequest
+	if err := utils.ParseJSON(w, r, &user); err != nil {
+		var mr *utils.MalformedRequest
 		if errors.As(err, &mr) {
-			util.JSONResponse(w, mr.Code, &dto.Response{
+			utils.JSONResponse(w, mr.Code, &utils.Response{
 				Message: mr.Message,
 			})
 			return
 		}
-		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+		utils.JSONResponse(w, http.StatusInternalServerError, &utils.Response{
 			Message: "Internal Server Error",
 		})
 		return
 	}
 
 	if err := user.Validate(); err != nil {
-		var validationErrs dto.ValidationErrors
+		var validationErrs types.ValidationErrors
 
 		if errors.As(err, &validationErrs) {
-			util.JSONResponse(w, http.StatusBadRequest, &dto.Response{
+			utils.JSONResponse(w, http.StatusBadRequest, &utils.Response{
 				Message: "Validation error",
 				Data:    validationErrs,
 			})
 			return
 		}
-		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+		utils.JSONResponse(w, http.StatusInternalServerError, &utils.Response{
 			Message: "Internal Server Error",
 		})
 		return
@@ -66,12 +65,12 @@ func (h *handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	session, err := h.service.RegisterUser(ctx, user)
 	if err != nil {
-		if err == auth.ErrUsernameAlreadyExists {
-			util.JSONResponse(w, http.StatusConflict, &dto.Response{
+		if err == ErrUsernameAlreadyExists {
+			utils.JSONResponse(w, http.StatusConflict, &utils.Response{
 				Message: "Username already exists",
 			})
 		}
-		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+		utils.JSONResponse(w, http.StatusInternalServerError, &utils.Response{
 			Message: "Internal Server Error",
 		})
 		return
@@ -79,7 +78,7 @@ func (h *handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	cookie := newSessionCookie(session)
 
-	util.JSONResponse(w, http.StatusCreated, &dto.Response{
+	utils.JSONResponse(w, http.StatusCreated, &utils.Response{
 		Message: "User registered successfully",
 	})
 	http.SetCookie(w, cookie)
@@ -91,32 +90,32 @@ func (h *handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
 
-	var user dto.LoginUserRequest
-	if err := util.ParseJSON(w, r, &user); err != nil {
-		var mr *util.MalformedRequest
+	var user LoginUserRequest
+	if err := utils.ParseJSON(w, r, &user); err != nil {
+		var mr *utils.MalformedRequest
 		if errors.As(err, &mr) {
-			util.JSONResponse(w, mr.Code, &dto.Response{
+			utils.JSONResponse(w, mr.Code, &utils.Response{
 				Message: mr.Message,
 			})
 			return
 		}
-		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+		utils.JSONResponse(w, http.StatusInternalServerError, &utils.Response{
 			Message: "Internal Server Error",
 		})
 		return
 	}
 
 	if err := user.Validate(); err != nil {
-		var validationErrs dto.ValidationErrors
+		var validationErrs types.ValidationErrors
 
 		if errors.As(err, &validationErrs) {
-			util.JSONResponse(w, http.StatusBadRequest, &dto.Response{
+			utils.JSONResponse(w, http.StatusBadRequest, &utils.Response{
 				Message: "Validation error",
 				Data:    validationErrs,
 			})
 			return
 		}
-		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+		utils.JSONResponse(w, http.StatusInternalServerError, &utils.Response{
 			Message: "Internal Server Error",
 		})
 		return
@@ -124,13 +123,13 @@ func (h *handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	session, err := h.service.LoginUser(ctx, user)
 	if err != nil {
-		if err == auth.ErrInvalidCredentials {
-			util.JSONResponse(w, http.StatusUnauthorized, &dto.Response{
+		if err == ErrInvalidCredentials {
+			utils.JSONResponse(w, http.StatusUnauthorized, &utils.Response{
 				Message: "Invalid credentials",
 			})
 			return
 		}
-		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+		utils.JSONResponse(w, http.StatusInternalServerError, &utils.Response{
 			Message: "Internal Server Error",
 		})
 		return
@@ -139,7 +138,7 @@ func (h *handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	cookie := newSessionCookie(session)
 
 	http.SetCookie(w, cookie)
-	util.JSONResponse(w, http.StatusOK, &dto.Response{
+	utils.JSONResponse(w, http.StatusOK, &utils.Response{
 		Message: "User logged in successfully",
 	})
 }
@@ -151,25 +150,25 @@ func (h *handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
 		if errors.Is(err, http.ErrNoCookie) {
-			util.JSONResponse(w, http.StatusUnauthorized, &dto.Response{
+			utils.JSONResponse(w, http.StatusUnauthorized, &utils.Response{
 				Message: "Unauthorized",
 			})
 			return
 		}
-		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+		utils.JSONResponse(w, http.StatusInternalServerError, &utils.Response{
 			Message: "Internal Server Error",
 		})
 		return
 	}
 
 	if err := h.service.RemoveSession(ctx, cookie.Value); err != nil {
-		if err == auth.ErrSessionNotFound {
-			util.JSONResponse(w, http.StatusUnauthorized, &dto.Response{
+		if err == ErrSessionNotFound {
+			utils.JSONResponse(w, http.StatusUnauthorized, &utils.Response{
 				Message: "Unauthorized",
 			})
 			return
 		}
-		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+		utils.JSONResponse(w, http.StatusInternalServerError, &utils.Response{
 			Message: "Internal Server Error",
 		})
 		return
@@ -178,7 +177,7 @@ func (h *handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	cookie.MaxAge = -1
 
 	http.SetCookie(w, cookie)
-	util.JSONResponse(w, http.StatusOK, &dto.Response{
+	utils.JSONResponse(w, http.StatusOK, &utils.Response{
 		Message: "User logged out successfully",
 	})
 }

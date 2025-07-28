@@ -2,17 +2,14 @@ package app
 
 import (
 	"database/sql"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
 
+	"github.com/badiwidya/yaurl/internal/auth"
 	"github.com/badiwidya/yaurl/internal/config"
-	authHandler "github.com/badiwidya/yaurl/internal/handler/auth"
-	shortenerHandler "github.com/badiwidya/yaurl/internal/handler/shortener"
-	"github.com/badiwidya/yaurl/internal/middleware"
-	authService "github.com/badiwidya/yaurl/internal/service/auth"
-	shortenerService "github.com/badiwidya/yaurl/internal/service/shortener"
+	"github.com/badiwidya/yaurl/internal/pkg/middlewares"
+	"github.com/badiwidya/yaurl/internal/shortener"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -40,31 +37,24 @@ func (a *app) Run() error {
 	logger := createNewLogger(level)
 
 	logger.Info("Database connected")
-	db, err := sql.Open("pgx", a.cfg.DB_STRING)
+	db, err := initDatabase(a.cfg.DB_STRING)
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v\n", err)
-	}
-	defer db.Close()
-
-	if err = db.Ping(); err != nil {
-		log.Fatalf("Cannot ping to database: %v\n", err)
+		logger.Error("Failed to connect to database", "error", err.Error())
+		os.Exit(1)
 	}
 
-	urlService := shortenerService.New(a.cfg, logger.With("service", "shortener-service"), db)
-	urlHandler := shortenerHandler.New(urlService)
+	shortenerService := shortener.NewService(a.cfg, logger.With("op", "shortener"), db)
+	shortenerHandler := shortener.NewHandler(shortenerService)
+	authService := auth.NewService(db, logger.With("op", "auth"))
+	authHandler := auth.NewHandler(authService)
 
-	authS := authService.New(db, logger.With("service", "auth-service"))
-	authH := authHandler.New(authS)
+	authMiddleware := middlewares.NewAuthRequired(db)
 
-	shortenURL := middleware.AuthRequired(db, http.HandlerFunc(urlHandler.ShortenURL))
-	logout := middleware.AuthRequired(db, http.HandlerFunc(authH.HandleLogout))
+	shortenerRoutes := shortener.RegisterRoutes(shortenerHandler, authMiddleware)
+	authRoutes := auth.RegisterRoutes(authHandler, authMiddleware)
 
-	mux.Handle("POST /api/url", shortenURL)
-	mux.HandleFunc("GET /{code}", urlHandler.RedirectUrl)
-
-	mux.HandleFunc("POST /api/auth/register", authH.HandleRegister)
-	mux.HandleFunc("POST /api/auth/login", authH.HandleLogin)
-	mux.Handle("POST /api/auth/logout", logout)
+	mux.Handle("/api/auth", http.StripPrefix("/api/auth", authRoutes))
+	mux.Handle("/", shortenerRoutes)
 
 	logger.Info("Server started", "port", a.cfg.APP_PORT)
 	return http.ListenAndServe(a.addr, mux)
@@ -78,4 +68,17 @@ func createNewLogger(level slog.Level) *slog.Logger {
 	handler := slog.NewJSONHandler(os.Stdout, opts)
 
 	return slog.New(handler)
+}
+
+func initDatabase(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }

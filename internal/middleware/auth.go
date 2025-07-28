@@ -3,8 +3,10 @@ package middleware
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"net/http"
+
+	"github.com/badiwidya/yaurl/internal/dto"
+	"github.com/badiwidya/yaurl/internal/util"
 )
 
 type userKey string
@@ -18,13 +20,13 @@ func AuthRequired(db *sql.DB, next http.Handler) http.Handler {
 		cookie, err := r.Cookie("session_id")
 		if err != nil {
 			if err == http.ErrNoCookie {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(struct{ message string }{message: "Unauthorized"})
+				util.JSONResponse(w, http.StatusUnauthorized, &dto.Response{
+					Message: "Unauthorized",
+				})
 			} else {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(struct{ message string }{message: "Internal server error"})
+				util.JSONResponse(w, http.StatusBadRequest, &dto.Response{
+					Message: "Internal server error",
+				})
 			}
 			return
 		}
@@ -33,13 +35,13 @@ func AuthRequired(db *sql.DB, next http.Handler) http.Handler {
 
 		if err := row.Scan(&userId); err != nil {
 			if err == sql.ErrNoRows {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(struct{ message string }{message: "Unauthorized"})
+				util.JSONResponse(w, http.StatusUnauthorized, &dto.Response{
+					Message: "Unauthorized",
+				})
 			} else {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(struct{ message string }{message: "Internal server error"})
+				util.JSONResponse(w, http.StatusBadRequest, &dto.Response{
+					Message: "Internal server error",
+				})
 			}
 			return
 		}

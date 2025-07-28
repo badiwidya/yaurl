@@ -2,13 +2,13 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
 
 	"github.com/badiwidya/yaurl/internal/dto"
 	"github.com/badiwidya/yaurl/internal/service/auth"
+	"github.com/badiwidya/yaurl/internal/util"
 )
 
 func New(service auth.Service) *handler {
@@ -33,15 +33,18 @@ func (h *handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
 
-	jsonEncoder := json.NewEncoder(w)
-	jsonDecoder := json.NewDecoder(r.Body)
-
-	w.Header().Set("Content-Type", "application/json")
-
 	var user dto.RegisterUserRequest
-	if err := jsonDecoder.Decode(&user); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		jsonEncoder.Encode(struct{ message string }{message: "Bad request, invalid data"})
+	if err := util.ParseJSON(w, r, &user); err != nil {
+		var mr *util.MalformedRequest
+		if errors.As(err, &mr) {
+			util.JSONResponse(w, mr.Code, &dto.Response{
+				Message: mr.Message,
+			})
+			return
+		}
+		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+			Message: "Internal Server Error",
+		})
 		return
 	}
 
@@ -49,40 +52,37 @@ func (h *handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		var validationErrs dto.ValidationErrors
 
 		if errors.As(err, &validationErrs) {
-			w.WriteHeader(http.StatusBadRequest)
-			jsonEncoder.Encode(struct {
-				message string
-				errors  any
-			}{
-				message: "Validation error",
-				errors:  validationErrs,
+			util.JSONResponse(w, http.StatusBadRequest, &dto.Response{
+				Message: "Validation error",
+				Data:    validationErrs,
 			})
-
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			jsonEncoder.Encode(struct{ message string }{message: "Internal server error"})
+			return
 		}
+		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+			Message: "Internal Server Error",
+		})
 		return
 	}
 
 	session, err := h.service.RegisterUser(ctx, user)
 	if err != nil {
 		if err == auth.ErrUsernameAlreadyExists {
-			w.WriteHeader(http.StatusConflict)
-			jsonEncoder.Encode(struct{ message string }{message: "Username already exists"})
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			jsonEncoder.Encode(struct{ message string }{message: "Internal server error"})
+			util.JSONResponse(w, http.StatusConflict, &dto.Response{
+				Message: "Username already exists",
+			})
 		}
+		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+			Message: "Internal Server Error",
+		})
 		return
 	}
 
 	cookie := newSessionCookie(session)
 
-	w.WriteHeader(http.StatusCreated)
+	util.JSONResponse(w, http.StatusCreated, &dto.Response{
+		Message: "User registered successfully",
+	})
 	http.SetCookie(w, cookie)
-
-	jsonEncoder.Encode(struct{ message string }{message: "Registered successfully"})
 }
 
 func (h *handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
@@ -91,15 +91,18 @@ func (h *handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
 
-	jsonEncoder := json.NewEncoder(w)
-	jsonDecoder := json.NewDecoder(r.Body)
-
-	w.Header().Set("Content-Type", "application/json")
-
 	var user dto.LoginUserRequest
-	if err := jsonDecoder.Decode(&user); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		jsonEncoder.Encode(struct{ message string }{message: "Bad request, invalid data"})
+	if err := util.ParseJSON(w, r, &user); err != nil {
+		var mr *util.MalformedRequest
+		if errors.As(err, &mr) {
+			util.JSONResponse(w, mr.Code, &dto.Response{
+				Message: mr.Message,
+			})
+			return
+		}
+		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+			Message: "Internal Server Error",
+		})
 		return
 	}
 
@@ -107,77 +110,77 @@ func (h *handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		var validationErrs dto.ValidationErrors
 
 		if errors.As(err, &validationErrs) {
-			w.WriteHeader(http.StatusBadRequest)
-			jsonEncoder.Encode(struct {
-				message string
-				errors  any
-			}{
-				message: "Validation error",
-				errors:  validationErrs,
+			util.JSONResponse(w, http.StatusBadRequest, &dto.Response{
+				Message: "Validation error",
+				Data:    validationErrs,
 			})
-
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			jsonEncoder.Encode(struct{ message string }{message: "Internal server error"})
+			return
 		}
+		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+			Message: "Internal Server Error",
+		})
 		return
 	}
 
 	session, err := h.service.LoginUser(ctx, user)
 	if err != nil {
 		if err == auth.ErrInvalidCredentials {
-			w.WriteHeader(http.StatusConflict)
-			jsonEncoder.Encode(struct{ message string }{message: "Invalid credentials"})
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			jsonEncoder.Encode(struct{ message string }{message: "Internal server error"})
+			util.JSONResponse(w, http.StatusUnauthorized, &dto.Response{
+				Message: "Invalid credentials",
+			})
+			return
 		}
+		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+			Message: "Internal Server Error",
+		})
 		return
 	}
 
 	cookie := newSessionCookie(session)
 
-	w.WriteHeader(http.StatusCreated)
 	http.SetCookie(w, cookie)
-
-	jsonEncoder.Encode(struct{ message string }{message: "Logged in successfully"})
+	util.JSONResponse(w, http.StatusOK, &dto.Response{
+		Message: "User logged in successfully",
+	})
 }
 
 func (h *handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
-	w.Header().Set("Content-Type", "application/json")
-
-	jsonEncoder := json.NewEncoder(w)
 
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
 		if err == http.ErrNoCookie {
-			w.WriteHeader(http.StatusBadRequest)
-			jsonEncoder.Encode(struct{ message string }{message: "Cookie not found"})
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			jsonEncoder.Encode(struct{ message string }{message: "Internal server error"})
+			util.JSONResponse(w, http.StatusUnauthorized, &dto.Response{
+				Message: "Unauthorized",
+			})
+			return
 		}
+		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+			Message: "Internal Server Error",
+		})
 		return
 	}
 
 	if err := h.service.RemoveSession(ctx, cookie.Value); err != nil {
 		if err == auth.ErrSessionNotFound {
-			w.WriteHeader(http.StatusNotFound)
-			jsonEncoder.Encode(struct{ message string }{message: "Session not found in database"})
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			jsonEncoder.Encode(struct{ message string }{message: "Internal server error"})
+			util.JSONResponse(w, http.StatusUnauthorized, &dto.Response{
+				Message: "Unauthorized",
+			})
+			return
 		}
+		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+			Message: "Internal Server Error",
+		})
 		return
 	}
 
 	cookie.MaxAge = -1
 
-	w.WriteHeader(http.StatusOK)
 	http.SetCookie(w, cookie)
-	jsonEncoder.Encode(struct{ message string }{message: "Logged out successfully"})
+	util.JSONResponse(w, http.StatusOK, &dto.Response{
+		Message: "User logged out successfully",
+	})
 }
 
 const sessionCookieName = "session_id"

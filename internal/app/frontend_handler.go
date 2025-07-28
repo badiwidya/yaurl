@@ -50,7 +50,3 @@ func (s *Server) serveTemplate(w http.ResponseWriter, pageName string, data any)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
-
-func handleStaticFiles() http.Handler {
-	return http.StripPrefix("/web/static/", http.FileServer(http.Dir("./static")))
-}

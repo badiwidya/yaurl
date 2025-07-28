@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -34,12 +33,17 @@ func (h *handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
 
-	jsonDecoder := json.NewDecoder(r.Body)
-
 	var user dto.RegisterUserRequest
-	if err := jsonDecoder.Decode(&user); err != nil {
-		util.JSONResponse(w, http.StatusBadRequest, &dto.Response{
-			Message: "Invalid data",
+	if err := util.ParseJSON(w, r, &user); err != nil {
+		var mr *util.MalformedRequest
+		if errors.As(err, &mr) {
+			util.JSONResponse(w, mr.Code, &dto.Response{
+				Message: mr.Message,
+			})
+			return
+		}
+		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+			Message: "Internal Server Error",
 		})
 		return
 	}
@@ -87,12 +91,17 @@ func (h *handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
 
-	jsonDecoder := json.NewDecoder(r.Body)
-
 	var user dto.LoginUserRequest
-	if err := jsonDecoder.Decode(&user); err != nil {
-		util.JSONResponse(w, http.StatusBadRequest, &dto.Response{
-			Message: "Invalid data",
+	if err := util.ParseJSON(w, r, &user); err != nil {
+		var mr *util.MalformedRequest
+		if errors.As(err, &mr) {
+			util.JSONResponse(w, mr.Code, &dto.Response{
+				Message: mr.Message,
+			})
+			return
+		}
+		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+			Message: "Internal Server Error",
 		})
 		return
 	}

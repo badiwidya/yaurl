@@ -2,7 +2,7 @@ package shortener
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -44,9 +44,16 @@ func (s *shortenerHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	defer close()
 
 	var longUrl dto.URL
-	if err := json.NewDecoder(r.Body).Decode(&longUrl); err != nil {
-		util.JSONResponse(w, http.StatusBadRequest, &dto.Response{
-			Message: "Invalid URL",
+	if err := util.ParseJSON(w, r, &longUrl); err != nil {
+		var mr *util.MalformedRequest
+		if errors.As(err, &mr) {
+			util.JSONResponse(w, mr.Code, &dto.Response{
+				Message: mr.Message,
+			})
+			return
+		}
+		util.JSONResponse(w, http.StatusInternalServerError, &dto.Response{
+			Message: "Internal Server Error",
 		})
 		return
 	}

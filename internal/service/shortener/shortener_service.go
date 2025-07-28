@@ -48,7 +48,7 @@ func (s *shortenerService) FindLongUrl(ctx context.Context, code string) (*strin
 
 	err := row.Scan(&long_url)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, ErrExecQuery

@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 
 	"github.com/badiwidya/yaurl/internal/dto"
@@ -19,7 +20,7 @@ func AuthRequired(db *sql.DB, next http.Handler) http.Handler {
 
 		cookie, err := r.Cookie("session_id")
 		if err != nil {
-			if err == http.ErrNoCookie {
+			if errors.Is(err, http.ErrNoCookie) {
 				util.JSONResponse(w, http.StatusUnauthorized, &dto.Response{
 					Message: "Unauthorized",
 				})
@@ -34,7 +35,7 @@ func AuthRequired(db *sql.DB, next http.Handler) http.Handler {
 		row := db.QueryRowContext(r.Context(), "SELECT user_id FROM sessions where session_id = $1", cookie.Value)
 
 		if err := row.Scan(&userId); err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				util.JSONResponse(w, http.StatusUnauthorized, &dto.Response{
 					Message: "Unauthorized",
 				})

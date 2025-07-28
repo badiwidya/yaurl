@@ -150,7 +150,7 @@ func (h *handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
-		if err == http.ErrNoCookie {
+		if errors.Is(err, http.ErrNoCookie) {
 			util.JSONResponse(w, http.StatusUnauthorized, &dto.Response{
 				Message: "Unauthorized",
 			})

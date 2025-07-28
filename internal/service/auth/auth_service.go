@@ -46,11 +46,13 @@ func (s *service) RegisterUser(ctx context.Context, user dto.RegisterUserRequest
 	row := tx.QueryRowContext(ctx, "SELECT username FROM users WHERE username = $1;", user.Username)
 
 	err = row.Scan(&username)
-	if err == nil {
+	switch {
+	case err == nil:
 		return nil, ErrUsernameAlreadyExists
-	}
-	if err != sql.ErrNoRows {
-		s.logger.Error("Unexpected error when scanning existing username on register", "error", err.Error())
+	case errors.Is(err, sql.ErrNoRows):
+		break
+	default:
+		s.logger.Error("Unexpected error when scanning existing username", "error", err.Error())
 		return nil, err
 	}
 
@@ -105,7 +107,7 @@ func (s *service) LoginUser(ctx context.Context, user dto.LoginUserRequest) (*st
 
 	err := row.Scan(&id, &password)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrInvalidCredentials
 		}
 		return nil, err

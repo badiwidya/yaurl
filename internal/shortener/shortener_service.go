@@ -12,8 +12,8 @@ import (
 	"github.com/badiwidya/yaurl/internal/config"
 )
 
-func New(config *config.Config, logger *slog.Logger, db *sql.DB) *shortenerService {
-	return &shortenerService{
+func NewService(config *config.Config, logger *slog.Logger, db *sql.DB) *service {
+	return &service{
 		cfg:    config,
 		logger: logger,
 		db:     db,
@@ -21,12 +21,12 @@ func New(config *config.Config, logger *slog.Logger, db *sql.DB) *shortenerServi
 	}
 }
 
-type ShortenerService interface {
+type Service interface {
 	CreateNewShortUrl(context.Context, string, int, *time.Time) (*string, error)
 	FindLongUrl(context.Context, string) (*string, error)
 }
 
-type shortenerService struct {
+type service struct {
 	cfg    *config.Config
 	logger *slog.Logger
 	db     *sql.DB
@@ -37,7 +37,7 @@ var ErrNotValidUrl error = errors.New("Invalid URL")
 var ErrExecQuery error = errors.New("Error when executing query")
 var ErrNotFound error = errors.New("Row not found")
 
-func (s *shortenerService) FindLongUrl(ctx context.Context, code string) (*string, error) {
+func (s *service) FindLongUrl(ctx context.Context, code string) (*string, error) {
 	row := s.db.QueryRowContext(
 		ctx,
 		"SELECT long_url FROM urls WHERE short_url = $1",
@@ -57,7 +57,7 @@ func (s *shortenerService) FindLongUrl(ctx context.Context, code string) (*strin
 	return &long_url, nil
 }
 
-func (s *shortenerService) CreateNewShortUrl(ctx context.Context, longUrl string, userId int, expire *time.Time) (*string, error) {
+func (s *service) CreateNewShortUrl(ctx context.Context, longUrl string, userId int, expire *time.Time) (*string, error) {
 
 	result, err := url.Parse(longUrl)
 	if err != nil || result.Scheme == "" || result.Host == "" {
@@ -94,7 +94,7 @@ func (s *shortenerService) CreateNewShortUrl(ctx context.Context, longUrl string
 	return &newURL, nil
 }
 
-func (s *shortenerService) generateRandomCode() string {
+func (s *service) generateRandomCode() string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 	shortCode := make([]byte, 7)

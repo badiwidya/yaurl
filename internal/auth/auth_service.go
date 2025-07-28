@@ -5,11 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
-
-	"github.com/badiwidya/yaurl/internal/dto"
 )
 
-func New(db *sql.DB, logger *slog.Logger) *service {
+func NewService(db *sql.DB, logger *slog.Logger) *service {
 	return &service{
 		db:     db,
 		logger: logger,
@@ -17,8 +15,8 @@ func New(db *sql.DB, logger *slog.Logger) *service {
 }
 
 type Service interface {
-	RegisterUser(context.Context, dto.RegisterUserRequest) (*string, error)
-	LoginUser(context.Context, dto.LoginUserRequest) (*string, error)
+	RegisterUser(context.Context, RegisterUserRequest) (*string, error)
+	LoginUser(context.Context, LoginUserRequest) (*string, error)
 	RemoveSession(context.Context, string) error
 }
 
@@ -34,7 +32,7 @@ var (
 	ErrSessionNotFound       = errors.New("Session not found in database")
 )
 
-func (s *service) RegisterUser(ctx context.Context, user dto.RegisterUserRequest) (*string, error) {
+func (s *service) RegisterUser(ctx context.Context, user RegisterUserRequest) (*string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		s.logger.Error("Failed to begin register transaction", "error", err.Error())
@@ -100,7 +98,7 @@ func (s *service) RegisterUser(ctx context.Context, user dto.RegisterUserRequest
 	return &sessionId, nil
 }
 
-func (s *service) LoginUser(ctx context.Context, user dto.LoginUserRequest) (*string, error) {
+func (s *service) LoginUser(ctx context.Context, user LoginUserRequest) (*string, error) {
 	var id int
 	var password string
 	row := s.db.QueryRowContext(ctx, "SELECT id, password FROM users WHERE username = $1;", user.Username)

@@ -1,19 +1,8 @@
-package dto
+package auth
 
 import (
-	"fmt"
-	"strings"
+	"github.com/badiwidya/yaurl/internal/pkg/types"
 )
-
-type ValidationErrors map[string]string
-
-func (v ValidationErrors) Error() string {
-	var errs []string
-	for key, err := range v {
-		errs = append(errs, fmt.Sprintf("%s: %s", key, err))
-	}
-	return strings.Join(errs, ", ")
-}
 
 type RegisterUserRequest struct {
 	Name     string `json:"name,omitempty"`
@@ -27,7 +16,7 @@ type LoginUserRequest struct {
 }
 
 func (r RegisterUserRequest) Validate() error {
-	errs := make(ValidationErrors)
+	errs := make(types.ValidationErrors)
 
 	if len(r.Name) < 3 {
 		errs["name"] = "must be at least 3 characters"
@@ -49,7 +38,7 @@ func (r RegisterUserRequest) Validate() error {
 }
 
 func (l LoginUserRequest) Validate() error {
-	errs := make(ValidationErrors)
+	errs := make(types.ValidationErrors)
 
 	if l.Username == "" {
 		errs["username"] = "field required"
